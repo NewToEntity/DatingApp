@@ -13,6 +13,10 @@ using Microsoft.Extensions.Logging;
 using DatingApp.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+
 
 namespace DatingApp.API
 {
@@ -31,6 +35,21 @@ namespace DatingApp.API
             services.AddDbContext<DataContext>(x => x.UseSqlite(Configuration.GetConnectionString("DefaultConnection")));
             services.AddControllers();
             services.AddCors();
+            //services.AddSingleton //single instance of the our repository in the application, created once and re-Use it in all ot he calls
+                //can cause issues when it comes to consurent requests
+            //services.AddTransient //usefull lightweit services as they are created each time they are requested
+            services.AddScoped<IAuthRepository, AuthRepository>(); //searcives is created once in the scoped, for example it creates one instance for each http request and but usses the same
+                // same instance in calls in the same web srequest
+            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>{
+                    options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+                    {
+                        ValidateIssuerSigningKey = true,
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII
+                            .GetBytes(Configuration.GetSection("AppSettings:Token").Value)),
+                        ValidateIssuer  =false,
+                        ValidateAudience = false
+                    };
+            });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -45,8 +64,9 @@ namespace DatingApp.API
 
             app.UseRouting();
 
-            //app.UseAuthorization();
-   app.UseCors(x => x.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+            app.UseAuthorization();
+            app.UseCors(x => x.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+            app.UseAuthentication();
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
